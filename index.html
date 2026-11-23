@@ -36,6 +36,9 @@ label{display:block;margin:10px 0 4px;font-size:14px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ok{background:var(--pri);color:var(--pt);padding:10px;border-radius:10px;margin-bottom:10px}
 .empty{text-align:center;color:var(--mut);padding:30px 0}
+.vid iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;margin-top:8px}
+details{margin:8px 0}summary{cursor:pointer;color:var(--pri);font-size:14px}
+.who-box{margin:6px 0 10px;font-size:14px;color:var(--mut);background:var(--bg);border-radius:10px;padding:8px 10px}.who-box b{display:block;color:var(--tx);margin-bottom:2px}.who-box a{color:var(--pri)}
 .roles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .roles .card{cursor:pointer;text-align:center}
 </style>
@@ -56,10 +59,15 @@ const firebaseConfig={apiKey:"AIzaSyA3TTCqbPijNda0psSXCyWKQ22oi0KbFLY",authDomai
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const IND={"Technology":"💻","Health":"🩺","Agriculture":"🌱","Education":"🎓","Real Estate":"🏢","E-commerce":"🛒","Energy":"⚡","Food":"🍽️"};
 const IDEA="MVP built, not launched",STG=["Idea",IDEA,"Early Revenue","Growth"];
-let U=null,prof=null,admin=false,unsub=[],P=[],MY=[],PEND=[],INT=[],view="",flt="All",q="",msg="",booted=false;
+let U=null,prof=null,admin=false,unsub=[],P=[],MY=[],PEND=[],INT=[],USERS={},view="",flt="All",q="",msg="",booted=false;
 const $=i=>document.getElementById(i);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fm=n=>Number(n).toLocaleString("en-US")+" EGP";
+const embed=u=>{u=String(u||"").trim();let m;
+  if((m=u.match(/^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,20})/i)))return "https://www.youtube-nocookie.com/embed/"+m[1];
+  if((m=u.match(/^https?:\/\/drive\.google\.com\/file\/d\/([\w-]{10,})/i)))return "https://drive.google.com/file/d/"+m[1]+"/preview";
+  return ""};
+const vidHtml=p=>{const e=embed(p.v);return e?'<details><summary>▶ Watch pitch video</summary><div class="vid"><iframe src="'+esc(e)+'" loading="lazy" allowfullscreen referrerpolicy="no-referrer"></iframe></div></details>':''};
 const safe=u=>/^https?:\/\//i.test(u||"")?esc(u):"";
 const rows=s=>s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
 const role=()=>admin?"admin":prof?.role||"";
@@ -84,6 +92,7 @@ function start(){
     sub(collection(db,"interests"),r=>INT=r);
   }
   if(admin)sub(query(pr,where("status","==","pending")),r=>PEND=r);
+  if(admin)sub(collection(db,"users"),r=>{USERS=Object.fromEntries(r.map(u=>[u.id,u]))});
 }
 
 function draw(){
@@ -112,7 +121,8 @@ function refresh(){
 }
 function card(p,mode){
   const mv=p.s==IDEA?safe(p.m):"",id=esc(p.id),mine=INT.some(x=>x.projectId==p.id&&x.investorUid==U.uid),n=INT.filter(x=>x.projectId==p.id).length;
-  let h='<div class="card"><div class="top"><span class="tag">'+(IND[p.i]||"")+' '+esc(p.i)+'</span><span>'+(mv?'<span class="tag mvp">MVP ready</span> ':'')+'<span class="tag">'+esc(p.s)+'</span></span></div><h3>'+esc(p.n)+'</h3><p>'+esc(p.d)+'</p>'+(p.x?'<p><b>Needs to launch:</b> '+esc(p.x)+'</p>':'')+'<div class="stats"><div class="st"><b>'+fm(p.a)+'</b>Seeking</div><div class="st"><b>'+esc(p.e)+'%</b>Equity offered</div>'+(mode=="b"?'<div class="st"><b>'+n+'</b>Interested investors</div>':'')+'</div>';
+  const who=(admin&&mode=="b")?INT.filter(x=>x.projectId==p.id).map(x=>{const u=USERS[x.investorUid]||{};return '<div>👤 '+esc(u.name||"Investor")+' · <a href="mailto:'+esc(u.email||"")+'">'+esc(u.email||"no email")+'</a></div>'}).join(""):"";
+  let h='<div class="card"><div class="top"><span class="tag">'+(IND[p.i]||"")+' '+esc(p.i)+'</span><span>'+(mv?'<span class="tag mvp">MVP ready</span> ':'')+'<span class="tag">'+esc(p.s)+'</span></span></div><h3>'+esc(p.n)+'</h3><p>'+esc(p.d)+'</p>'+(p.x?'<p><b>Needs to launch:</b> '+esc(p.x)+'</p>':'')+vidHtml(p)+'<div class="stats"><div class="st"><b>'+fm(p.a)+'</b>Seeking</div><div class="st"><b>'+esc(p.e)+'%</b>Equity offered</div>'+(mode=="b"?'<div class="st"><b>'+n+'</b>Interested investors</div>':'')+'</div>'+(who?'<div class="who-box"><b>Interested investors</b>'+who+'</div>':'');
   const link=(mv?'<a class="btn o" target="_blank" rel="noopener" href="'+mv+'">View MVP</a> ':'')+'<a class="btn o" href="mailto:'+esc(p.c)+'">Contact</a>';
   if(mode=="r")h+='<button class="btn" data-a="appr" data-id="'+id+'">Approve</button> <button class="btn o" data-a="rej" data-id="'+id+'">Reject</button> '+link;
   else if(mode=="m")h+='<button class="btn o s" data-a="del" data-id="'+id+'">Delete</button>';
@@ -131,7 +141,7 @@ function stat(){
   s.innerHTML=MY.length?'<h3>Your projects</h3>'+MY.map(p=>'<div class="card"><b>'+esc(p.n)+'</b><p>'+esc(L[p.status]||p.status)+'</p><button class="btn o s" data-a="del" data-id="'+esc(p.id)+'">Delete</button></div>').join(""):'';
 }
 function form(){
-  return (msg?'<div class="ok">'+esc(msg)+'</div>':'')+'<div class="card"><h3>Submit your project</h3><label>Startup name</label><input id="fn"><div class="row"><div><label>Industry</label><select id="fi">'+Object.keys(IND).map(k=>'<option>'+k+'</option>').join("")+'</select></div><div><label>Stage</label><select id="fs">'+STG.map(k=>'<option>'+k+'</option>').join("")+'</select></div></div><div class="row"><div><label>Funding sought (EGP)</label><input id="fa" type="number" min="0"></div><div><label>Equity offered (%)</label><input id="fe" type="number" min="1" max="100"></div></div><label>Description</label><textarea id="fd" rows="3" maxlength="2000"></textarea><label>What it needs to launch (optional)</label><input id="fx" placeholder="e.g. funding, a sales lead, a CTO"><label>MVP link (required for “MVP built, not launched”)</label><input id="fm" type="url" placeholder="https://…"><label>Contact email</label><input id="fc" type="email" value="'+esc(U.email||"")+'"><p></p><button class="btn" data-a="add">Submit for review</button></div>';
+  return (msg?'<div class="ok">'+esc(msg)+'</div>':'')+'<div class="card"><h3>Submit your project</h3><label>Startup name</label><input id="fn"><div class="row"><div><label>Industry</label><select id="fi">'+Object.keys(IND).map(k=>'<option>'+k+'</option>').join("")+'</select></div><div><label>Stage</label><select id="fs">'+STG.map(k=>'<option>'+k+'</option>').join("")+'</select></div></div><div class="row"><div><label>Funding sought (EGP)</label><input id="fa" type="number" min="0"></div><div><label>Equity offered (%)</label><input id="fe" type="number" min="1" max="100"></div></div><label>Description</label><textarea id="fd" rows="3" maxlength="2000"></textarea><label>What it needs to launch (optional)</label><input id="fx" placeholder="e.g. funding, a sales lead, a CTO"><label>MVP link (required for “MVP built, not launched”)</label><input id="fm" type="url" placeholder="https://…"><label>Pitch video link (optional)</label><input id="fv" type="url" placeholder="YouTube or Google Drive link"><p style="margin:4px 0 0;font-size:12px;color:var(--mut)">Upload your video to YouTube (Unlisted) or Google Drive (anyone with the link), then paste the link here.</p><label>Contact email</label><input id="fc" type="email" value="'+esc(U.email||"")+'"><p></p><button class="btn" data-a="add">Submit for review</button></div>';
 }
 
 const A={
@@ -144,10 +154,11 @@ const A={
     const g=i=>$(i).value.trim();
     if(!g("fn")||!g("fa")||!g("fe")||!g("fd")||!g("fc"))return alert("Please fill in all required fields");
     const e=+g("fe");if(e<1||e>100)return alert("Equity must be between 1 and 100");
-    const s=g("fs"),m=g("fm");
+    const s=g("fs"),m=g("fm"),v=g("fv");
     if(m&&!/^https?:\/\//i.test(m))return alert("MVP link must start with http:// or https://");
     if(s==IDEA&&!m)return alert("An MVP-built listing needs an MVP link");
-    try{await addDoc(collection(db,"projects"),{n:g("fn"),i:g("fi"),s,a:+g("fa"),e,d:g("fd"),c:g("fc"),m:s==IDEA?m:"",x:g("fx"),ownerUid:U.uid,ownerName:U.displayName||"",status:"pending",createdAt:serverTimestamp()});msg="Submitted. Investors will see it once it is approved.";$("app").innerHTML='<div id="stat"></div>'+form();stat()}
+    if(v&&!embed(v))return alert("Video link must be a YouTube or Google Drive link");
+    try{await addDoc(collection(db,"projects"),{n:g("fn"),i:g("fi"),s,a:+g("fa"),e,d:g("fd"),c:g("fc"),m:s==IDEA?m:"",x:g("fx"),v:v,ownerUid:U.uid,ownerName:U.displayName||"",status:"pending",createdAt:serverTimestamp()});msg="Submitted. Investors will see it once it is approved.";$("app").innerHTML='<div id="stat"></div>'+form();stat()}
     catch(err){alert("Could not submit. Please try again.")}
   },
   like:async id=>{
