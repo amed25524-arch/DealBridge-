@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farsa – Founders meet investors</title>
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--tx:#0e1b2c;--mut:#5b6878;--bd:#dde2e8;--pri:#0b6e4f;--pt:#fff;--amb:#e0a526}
+@media (prefers-color-scheme:dark){:root{--bg:#0e141b;--card:#17202a;--tx:#edf1f5;--mut:#9aa7b6;--bd:#2a3644;--pri:#3ecf9c;--pt:#04231a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.6}
+.w{max-width:780px;margin:0 auto;padding:16px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0 14px}
+header b{font-size:20px}header span{font-size:13px;color:var(--mut)}
+.hero{padding:34px 0 10px}.hero h1{font-size:30px;line-height:1.2;margin:0 0 10px}.hero p{color:var(--mut);margin:0 0 18px;max-width:52ch}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tab,.chip{border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;cursor:pointer}
+.tab{flex:1;padding:10px;border-radius:10px}
+.tab.on,.chip.on{background:var(--pri);color:var(--pt);border-color:var(--pri)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px}
+.chip{flex:none;padding:6px 12px;border-radius:99px;font-size:14px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);font:inherit}
+:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.tag{font-size:13px;padding:2px 10px;border-radius:99px;background:var(--bg);border:1px solid var(--bd)}
+.mvp{background:var(--amb);color:#201600;border-color:var(--amb)}
+.card h3{margin:8px 0 4px;font-size:17px}.card p{margin:4px 0;color:var(--mut);font-size:14px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.st{flex:1;min-width:90px;background:var(--bg);border-radius:10px;padding:8px;text-align:center;font-size:12px;color:var(--mut)}
+.st b{display:block;font-size:15px;color:var(--tx)}
+.btn{padding:10px 14px;border:0;border-radius:10px;background:var(--pri);color:var(--pt);font:inherit;cursor:pointer;text-decoration:none;display:inline-block;margin-top:4px}
+.btn.o{background:transparent;color:var(--pri);border:1px solid var(--pri)}
+.btn.s{padding:6px 10px;font-size:13px}
+label{display:block;margin:10px 0 4px;font-size:14px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ok{background:var(--pri);color:var(--pt);padding:10px;border-radius:10px;margin-bottom:10px}
+.empty{text-align:center;color:var(--mut);padding:30px 0}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.roles .card{cursor:pointer;text-align:center}
+</style>
+</head>
+<body>
+<div class="w">
+<header><b>🚀 Farsa</b><span id="who"></span></header>
+<div id="app"><div class="empty">Loading…</div></div>
+</div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,doc,getDoc,setDoc,addDoc,updateDoc,deleteDoc,collection,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// 1) Paste your Firebase web app config here (see README.md)
+const firebaseConfig={apiKey:"AIzaSyA3TTCqbPijNda0psSXCyWKQ22oi0KbFLY",authDomain:"dealbridge-bc8b9.firebaseapp.com",projectId:"dealbridge-bc8b9",storageBucket:"dealbridge-bc8b9.firebasestorage.app",messagingSenderId:"383575780877",appId:"1:383575780877:web:30ca903a09c2f7a359ef44"};
+
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+const IND={"Technology":"💻","Health":"🩺","Agriculture":"🌱","Education":"🎓","Real Estate":"🏢","E-commerce":"🛒","Energy":"⚡","Food":"🍽️"};
+const IDEA="MVP built, not launched",STG=["Idea",IDEA,"Early Revenue","Growth"];
+let U=null,prof=null,admin=false,unsub=[],P=[],MY=[],PEND=[],INT=[],view="",flt="All",q="",msg="",booted=false;
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fm=n=>Number(n).toLocaleString("en-US")+" EGP";
+const safe=u=>/^https?:\/\//i.test(u||"")?esc(u):"";
+const rows=s=>s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+const role=()=>admin?"admin":prof?.role||"";
+
+onAuthStateChanged(auth,async u=>{
+  unsub.forEach(f=>f());unsub=[];U=u;prof=null;admin=false;P=[];MY=[];PEND=[];INT=[];view="";msg="";
+  if(u){
+    try{
+      admin=(await getDoc(doc(db,"admins",u.uid))).exists();
+      const s=await getDoc(doc(db,"users",u.uid));prof=s.exists()?s.data():null;
+    }catch(e){console.error(e)}
+    start();
+  }
+  booted=true;draw();
+});
+function sub(q,fn){unsub.push(onSnapshot(q,s=>{fn(rows(s));refresh()},e=>console.error(e)))}
+function start(){
+  const pr=collection(db,"projects");
+  if(role()=="founder")sub(query(pr,where("ownerUid","==",U.uid)),r=>MY=r);
+  if(role()=="investor"||admin){
+    sub(query(pr,where("status","==","approved")),r=>P=r);
+    sub(collection(db,"interests"),r=>INT=r);
+  }
+  if(admin)sub(query(pr,where("status","==","pending")),r=>PEND=r);
+}
+
+function draw(){
+  const a=$("app");$("who").innerHTML=U?esc(U.displayName||U.email)+' · <a href="#" data-a="out">Sign out</a>':"";
+  if(!booted){return}
+  if(!U){
+    a.innerHTML='<div class="hero"><h1>Founders pitch. Investors discover.</h1><p>Submit your startup for review, or browse vetted projects by industry and check out MVPs that are ready to be launched.</p><button class="btn" data-a="in">Continue with Google</button></div>';return}
+  if(!role()){
+    a.innerHTML='<div class="card"><h3>How will you use Farsa?</h3><p>You can’t change this later, so choose carefully.</p></div><div class="roles"><div class="card" data-a="role" data-id="founder"><h3>🧑‍💻 I’m a founder</h3><p>Submit my project</p></div><div class="card" data-a="role" data-id="investor"><h3>💼 I’m an investor</h3><p>Browse projects</p></div></div>'+(msg?'<p class="sub">'+esc(msg)+'</p>':'');return}
+  const r=role();
+  if(r=="founder"){a.innerHTML='<div id="stat"></div>'+form();refresh();return}
+  const tabs=[["browse","Browse"],["ideas","MVP ideas"]].concat(admin?[["review","Review (0)"]]:[]);
+  if(!view||(view=="review"&&!admin))view="browse";
+  let h='<div class="tabs">'+tabs.map(t=>'<button class="tab'+(view==t[0]?' on':'')+'" id="t_'+t[0]+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>').join("")+'</div>';
+  if(view=="review")h+='<div id="lst"></div>';
+  else h+='<div class="chips">'+["All",...Object.keys(IND)].map(k=>'<button class="chip'+(k==flt?' on':'')+'" data-a="chip" data-id="'+k+'">'+(IND[k]||"📂")+' '+k+'</button>').join("")+'</div><input id="qi" placeholder="Search projects…" value="'+esc(q)+'">'+(view=="ideas"?'<p class="sub" style="color:var(--mut);font-size:14px;margin-top:10px">Ideas with a built MVP, waiting for someone to launch them.</p>':'')+'<div id="lst"></div>';
+  a.innerHTML=h;
+  const qi=$("qi");if(qi)qi.oninput=e=>{q=e.target.value;list()};
+  refresh();
+}
+function refresh(){
+  if(!U||!booted)return;
+  if(role()=="founder"){stat();return}
+  const t=$("t_review");if(t)t.textContent="Review ("+PEND.length+")";
+  list();
+}
+function card(p,mode){
+  const mv=p.s==IDEA?safe(p.m):"",id=esc(p.id),mine=INT.some(x=>x.projectId==p.id&&x.investorUid==U.uid),n=INT.filter(x=>x.projectId==p.id).length;
+  let h='<div class="card"><div class="top"><span class="tag">'+(IND[p.i]||"")+' '+esc(p.i)+'</span><span>'+(mv?'<span class="tag mvp">MVP ready</span> ':'')+'<span class="tag">'+esc(p.s)+'</span></span></div><h3>'+esc(p.n)+'</h3><p>'+esc(p.d)+'</p>'+(p.x?'<p><b>Needs to launch:</b> '+esc(p.x)+'</p>':'')+'<div class="stats"><div class="st"><b>'+fm(p.a)+'</b>Seeking</div><div class="st"><b>'+esc(p.e)+'%</b>Equity offered</div>'+(mode=="b"?'<div class="st"><b>'+n+'</b>Interested investors</div>':'')+'</div>';
+  const link=(mv?'<a class="btn o" target="_blank" rel="noopener" href="'+mv+'">View MVP</a> ':'')+'<a class="btn o" href="mailto:'+esc(p.c)+'">Contact</a>';
+  if(mode=="r")h+='<button class="btn" data-a="appr" data-id="'+id+'">Approve</button> <button class="btn o" data-a="rej" data-id="'+id+'">Reject</button> '+link;
+  else if(mode=="m")h+='<button class="btn o s" data-a="del" data-id="'+id+'">Delete</button>';
+  else h+='<button class="btn'+(mine?' o':'')+'" data-a="like" data-id="'+id+'">'+(mine?'✓ Interested':'I’m interested')+'</button> '+link+(admin?' <button class="btn o" data-a="del" data-id="'+id+'">Remove</button>':'');
+  return h+'</div>';
+}
+function list(){
+  const l=$("lst");if(!l)return;
+  if(view=="review"){l.innerHTML=PEND.length?PEND.map(p=>card(p,"r")).join(""):'<div class="empty">No submissions waiting for review.</div>';return}
+  const r=P.filter(p=>(view=="ideas"?p.s==IDEA:true)&&(flt=="All"||p.i==flt)&&(!q||((p.n||"")+" "+(p.d||"")).toLowerCase().includes(q.toLowerCase())));
+  l.innerHTML=r.length?r.map(p=>card(p,"b")).join(""):'<div class="empty">No approved projects here yet.</div>';
+}
+function stat(){
+  const s=$("stat");if(!s)return;
+  const L={pending:"⏳ Waiting for review",approved:"✅ Approved and visible to investors",rejected:"❌ Not approved. Edit and resubmit."};
+  s.innerHTML=MY.length?'<h3>Your projects</h3>'+MY.map(p=>'<div class="card"><b>'+esc(p.n)+'</b><p>'+esc(L[p.status]||p.status)+'</p><button class="btn o s" data-a="del" data-id="'+esc(p.id)+'">Delete</button></div>').join(""):'';
+}
+function form(){
+  return (msg?'<div class="ok">'+esc(msg)+'</div>':'')+'<div class="card"><h3>Submit your project</h3><label>Startup name</label><input id="fn"><div class="row"><div><label>Industry</label><select id="fi">'+Object.keys(IND).map(k=>'<option>'+k+'</option>').join("")+'</select></div><div><label>Stage</label><select id="fs">'+STG.map(k=>'<option>'+k+'</option>').join("")+'</select></div></div><div class="row"><div><label>Funding sought (EGP)</label><input id="fa" type="number" min="0"></div><div><label>Equity offered (%)</label><input id="fe" type="number" min="1" max="100"></div></div><label>Description</label><textarea id="fd" rows="3" maxlength="2000"></textarea><label>What it needs to launch (optional)</label><input id="fx" placeholder="e.g. funding, a sales lead, a CTO"><label>MVP link (required for “MVP built, not launched”)</label><input id="fm" type="url" placeholder="https://…"><label>Contact email</label><input id="fc" type="email" value="'+esc(U.email||"")+'"><p></p><button class="btn" data-a="add">Submit for review</button></div>';
+}
+
+const A={
+  in:()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>{msg="Sign-in failed: "+e.code;draw()}),
+  out:()=>signOut(auth),
+  tab:i=>{view=i;draw()},
+  chip:i=>{flt=i;draw()},
+  role:async r=>{try{await setDoc(doc(db,"users",U.uid),{role:r,name:U.displayName||"",email:U.email||"",createdAt:serverTimestamp()});prof={role:r};start();draw()}catch(e){msg="Could not save your choice. Try again.";draw()}},
+  add:async()=>{
+    const g=i=>$(i).value.trim();
+    if(!g("fn")||!g("fa")||!g("fe")||!g("fd")||!g("fc"))return alert("Please fill in all required fields");
+    const e=+g("fe");if(e<1||e>100)return alert("Equity must be between 1 and 100");
+    const s=g("fs"),m=g("fm");
+    if(m&&!/^https?:\/\//i.test(m))return alert("MVP link must start with http:// or https://");
+    if(s==IDEA&&!m)return alert("An MVP-built listing needs an MVP link");
+    try{await addDoc(collection(db,"projects"),{n:g("fn"),i:g("fi"),s,a:+g("fa"),e,d:g("fd"),c:g("fc"),m:s==IDEA?m:"",x:g("fx"),ownerUid:U.uid,ownerName:U.displayName||"",status:"pending",createdAt:serverTimestamp()});msg="Submitted. Investors will see it once it is approved.";$("app").innerHTML='<div id="stat"></div>'+form();stat()}
+    catch(err){alert("Could not submit. Please try again.")}
+  },
+  like:async id=>{
+    const k=id+"_"+U.uid,ref=doc(db,"interests",k);
+    try{INT.some(x=>x.id==k)?await deleteDoc(ref):await setDoc(ref,{projectId:id,investorUid:U.uid,createdAt:serverTimestamp()})}catch(e){alert("Could not save. Please try again.")}
+  },
+  appr:id=>updateDoc(doc(db,"projects",id),{status:"approved"}).catch(()=>alert("Could not approve")),
+  rej:id=>updateDoc(doc(db,"projects",id),{status:"rejected"}).catch(()=>alert("Could not reject")),
+  del:id=>confirm("Delete this project?")&&deleteDoc(doc(db,"projects",id)).catch(()=>alert("Could not delete"))
+};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b)return;e.preventDefault();const f=A[b.dataset.a];if(f)f(b.dataset.id)});
+</script>
+</body>
+</html>
